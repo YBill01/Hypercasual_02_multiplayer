@@ -76,30 +76,11 @@ public class StockBehaviour : IDisposable
 
 		for (int i = 0; i < _stockTransfers.Count; i++)
 		{
-			if (_stockTransfers[i].stockIn.Has(_stockTransfers[i].item) && _stockTransfers[i].stockOut.HasEmpty(_stockTransfers[i].item))
+			StockTransfer transfer = _stockTransfers[0];
+
+			if (ExecuteOnce())
 			{
-				if (_stockTransfers[i].stockIn.TryTake(_stockTransfers[i].item, out StockCollectingInfo takeCollectingInfo))
-				{
-					float duration = _stockTransfers[i].stockIn.TransferDuration + _stockTransfers[i].stockOut.TransferDuration;
-
-					if (_stockTransfers[i].stockOut.TryAdd(_stockTransfers[i].item, out StockCollectingInfo addCollectingInfo, duration))
-					{
-						if (duration > 0.0f)
-						{
-							_collectingEvents.OnTransfer.OnNext(new StockCollectingTransfer
-							{
-								originInfo = takeCollectingInfo,
-								targetInfo = addCollectingInfo,
-
-								prefab = _viewData.GetItemViewData(_stockTransfers[i].item.type).prefab,
-
-								duration = duration
-							});
-						}
-
-						_stockTransfersExecute.Add(_stockTransfers[i]);
-					}
-				}
+				_stockTransfersExecute.Add(transfer);
 			}
 		}
 
@@ -107,8 +88,49 @@ public class StockBehaviour : IDisposable
 		{
 			_stockEvents.OnTransferExecute.OnNext(_stockTransfersExecute);
 		}
+	}
 
-		_stockTransfers.Clear();
+	public bool ExecuteOnce(bool forced = false)
+	{
+		if (_stockTransfers.Count == 0)
+		{
+			return false;
+		}
+
+		StockTransfer transfer = _stockTransfers[0];
+		_stockTransfers.RemoveAt(0);
+
+		if (transfer.stockIn.Has(transfer.item) && transfer.stockOut.HasEmpty(transfer.item))
+		{
+			if (transfer.stockIn.TryTake(transfer.item, out StockCollectingInfo takeCollectingInfo))
+			{
+				float duration = transfer.stockIn.TransferDuration + transfer.stockOut.TransferDuration;
+
+				if (transfer.stockOut.TryAdd(transfer.item, out StockCollectingInfo addCollectingInfo, duration))
+				{
+					if (duration > 0.0f)
+					{
+						_collectingEvents.OnTransfer.OnNext(new StockCollectingTransfer
+						{
+							originInfo = takeCollectingInfo,
+							targetInfo = addCollectingInfo,
+
+							prefab = _viewData.GetItemViewData(transfer.item.type).prefab,
+
+							duration = duration
+						});
+					}
+
+					return true;
+				}
+			}
+		}
+		else if (forced)
+		{
+			OnTransfer(transfer);
+		}
+
+		return false;
 	}
 
 	public void Dispose()

@@ -324,6 +324,8 @@ public class GameWorld : MonoBehaviour, /*IPausable,*/ IUpdatable, ISaveable<Pla
 			{
 				storage.OnUpdate(deltaTime);
 			}
+
+			_stockBehaviour.Execute();
 		}
 		else
 		{
@@ -331,9 +333,9 @@ public class GameWorld : MonoBehaviour, /*IPausable,*/ IUpdatable, ISaveable<Pla
 			{
 				stockData.stock.OnUpdate(deltaTime);
 			}
-		}
 
-		_stockBehaviour.Execute();
+			_stockBehaviour.ExecuteOnce(true);
+		}
 	}
 
 	public void SetNetworkStockTransfer(NetworkGameWorld.StockTransferData[] data)
